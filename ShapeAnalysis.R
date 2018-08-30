@@ -164,8 +164,9 @@ plotRefToTarget(head.sym$symm.shape[,,x],head.sym$symm.shape[,,y], method="TPS",
 
 #Alternative to above - should work now
 head.size.model2<-procD.allometry(shape ~ size, ~sex*pop , logsz=F,  data=gdf4, iter = 9999, RRPP = F)
-plot(head.size.model, method = "Pred", gp.labels=T, warpgrids = F, shapes=F)
+plot(head.size.model2, method = "Pred", gp.labels=T, warpgrids = F, shapes=F)
 summary(head.size.model2)
 
 #Another   test of homogeneity of slopes, including pairwise slopes comparisons - only slightly different from above
 head.size.model3 <- advanced.procD.lm(shape ~ size+sex+pop, f2=~size*sex*pop, data=gdf4, groups=~sex*pop, slope=~size, iter=9999)
+summary(head.size.model3)
