@@ -1,9 +1,16 @@
 #A script to to sliding, gpa, PCA and extraction of PCA or Shape data
 #using geomorph package
 #26/04/2018 SA
+#This updated and some of the unnecessary ANOVA stuff has been removed.
+
 
 #Need to install the geomorph package, this only needs to be done ONCE
 #install.packages("geomorph")
+
+#update to the latest stable release of geomorph
+devtools::install_github("geomorphR/geomorph",ref="Stable")
+
+#You may have to install the devtools package first if you get an error above (with install.packages("devtools"))
 
 #load the package to use it
 library("geomorph")
@@ -16,7 +23,7 @@ library("geomorph")
 
 #Set the working directory to where the landmark files (.tps) are stored
 #this is the directory on my computer
-setwd("/Users/pedrogaspar/Desktop/T10-Z4-Parentals-Landmarks/Landmark Files")
+setwd("/media/data_disk/PROJECTS/Saad/Pedro_morph/PedroEyeShape/data/")
 
 #Read in the appropriate landmark file
 #these files are in the tps format
@@ -29,11 +36,11 @@ head <- readland.tps("Z4T10All.tps", specID = "ID")
 #define.sliders(head, nsliders=30)
 #this saves a file with the identity of the semi-lanmarks in the current
 #working directory as "curveslide.csv", which we will need to read in to do the sliding
-curves <- as.matrix(read.csv("curveslide.csv", header=T))
+curves <- as.matrix(read.csv("../curveslide.csv", header=T))
 #Similarly we can define a links file for help visualization
 #define.links(head)
 #I have saved this file as a text file and can be read in and used later
-links <- as.matrix(read.table("links.txt"))
+links <- as.matrix(read.table("../links.txt"))
 
 #Finally we need to define pairs of landmarks for object symmetry
 # I just do this manually below
@@ -117,37 +124,9 @@ plot(headPCA$pc.scores[,2], headPCA$pc.scores[,3], pch=21, cex=1, bg=col.pops, x
 legend("topleft", legend= unique(pops), pch=19,  col=unique(col.pops))
 #You can change the axes above and save the plot as a pdf
 
-#---------------------------------------------------------------------------------------
-#4 Procrustes anova to test for differences between pops and sex
-
-#extract pop and sex information indvidually
-pops_only <- as.factor(sapply(strsplit(as.character(pops), '_'), function(x){x[1]}))
-sex <- as.factor(sapply(strsplit(as.character(pops), '_'), function(x){x[2]}))
-
-
-gdf <- geomorph.data.frame(shape = head.sym$symm.shape,
-                           pop = pops_only , sex = sex) # geomorph data frame
-
-head.anova<-procD.lm(shape ~ pop * sex, data = gdf, iter = 999, RRPP = TRUE)
-plot(head.anova, type = "PC", pch = 21, bg=col.pops)
-
-#See if this works if using PC scores instead of coordinates
-gdf2 <- geomorph.data.frame(shape = headPCA$pc.scores,
-                           pop = pops_only , sex = sex) # geomorph data frame
-
-head.anova2<-procD.lm(shape ~ pop * sex, data = gdf2, iter = 999, RRPP = TRUE)
-plot(head.anova2, type = "PC", pch = 21, bg=col.pops)
-#identical results!!!
-
-#see what happens if using PC scores without PC1
-gdf3 <- geomorph.data.frame(shape = headPCA$pc.scores[,2:dim(headPCA$pc.scores)[2]],
-                            pop = pops_only , sex = sex) # geomorph data frame
-
-head.anova3<-procD.lm(shape ~ pop * sex, data = gdf3, iter = 9999, RRPP = F)
-plot(head.anova3, type = "PC", pch = 21, bg=col.pops)
 
 #-------------------------------------------------------
-#Regressing size on shape
+#Regressing size on shape and testing for pop, sex differences
 
 #I saved the size data as a .csv file
 
@@ -165,25 +144,28 @@ View(cbind(eyesize$V1,ind))
 
 #We need to create a relevant dataframe as above
 #Note you may want to consider the square root of eye area if you want to use it as size
-gdf4 <- geomorph.data.frame(shape = headPCA$pc.scores[,2:dim(headPCA$pc.scores)[2]], size=eyesize$V2,
+gdf4 <- geomorph.data.frame(shape = headPCA$pc.scores[,2:dim(headPCA$pc.scores)[2]], size = as.numeric(eyesize$V2),
                             pop = pops_only , sex = sex) # geomorph data frame
 
-head.size.model<-procD.lm(shape ~ size*pop*sex ,  data=gdf4, iter = 9999, RRPP = F)
-plot(head.size.model, type = "regression", pch = 21, predictor=eyesize$V2, bg=col.pops, reg.type="CRC")
+head.size.model<-procD.lm(shape ~ size*sex*pop ,  data=gdf4, iter = 9999, RRPP = F)
+alloplot<-plot(head.size.model, type = "regression", pch = 21, predictor=gdf4$size, bg=col.pops, reg.type="Pred")
 summary(head.size.model)
 
-#CRC common regression component - average regression score across all groups
-
+#references of min and max of regression score (instead of eyesize)
 #We could plot deformation grids (from the consensus) of the smallest versus the biggest individualspar(mfrow=(c(1,2)))
-x <-which.max(eyesize[,2])
+x <-which.max(alloplot$RegScore)
 plotRefToTarget(consensus,head.sym$symm.shape[,,x], method="TPS", mag =2, links=links)
 #do the same for other end of PC1
-y <-which.min(eyesize[,2])
+y <-which.min(alloplot$RegScore)
 plotRefToTarget(consensus,head.sym$symm.shape[,,y], method="TPS", mag =2, links=links)
 #deforemation grid from min to max
 plotRefToTarget(head.sym$symm.shape[,,y],head.sym$symm.shape[,,x], method="TPS", mag =2, links=links)
 plotRefToTarget(head.sym$symm.shape[,,x],head.sym$symm.shape[,,y], method="TPS", mag =2, links=links)
 
-#Alternative to above - doesn't work!
+#Alternative to above - should work now
 head.size.model2<-procD.allometry(shape ~ size, ~sex*pop , logsz=F,  data=gdf4, iter = 9999, RRPP = F)
-plot(head.size.model2, method = "CAC", gp.labels=T, warpgrids = T, shapes=T)
+plot(head.size.model, method = "Pred", gp.labels=T, warpgrids = F, shapes=F)
+summary(head.size.model2)
+
+#Another   test of homogeneity of slopes, including pairwise slopes comparisons - only slightly different from above
+head.size.model3 <- advanced.procD.lm(shape ~ size+sex+pop, f2=~size*sex*pop, data=gdf4, groups=~sex*pop, slope=~size, iter=9999)
