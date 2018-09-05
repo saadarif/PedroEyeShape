@@ -7,9 +7,6 @@
 #Need to install the geomorph package, this only needs to be done ONCE
 #install.packages("geomorph")
 
-#update to the latest stable release of geomorph
-devtools::install_github("geomorphR/geomorph",ref="Stable")
-
 #You may have to install the devtools package first if you get an error above (with install.packages("devtools"))
 
 #load the package to use it
@@ -115,8 +112,8 @@ names(col.pops) <- levels(pops)
 col.pops <- col.pops[match(pops, names(col.pops))]
 
 #make axes labels using the output of head pca above
-xlab <- paste("Principal Component 1 ", "(", round(headPCA$pc.summary$importance[2,1]*100, 1), "%)", sep="")
-ylab <- paste("Principal Component 2 ", "(", round(headPCA$pc.summary$importance[2,2]*100, 1), "%)", sep="")
+xlab <- paste("Principal Component 2 ", "(", round(headPCA$pc.summary$importance[2,2]*100, 1), "%)", sep="")
+ylab <- paste("Principal Component 3 ", "(", round(headPCA$pc.summary$importance[2,3]*100, 1), "%)", sep="")
 
 #make the plot
 dev.off()
@@ -144,10 +141,13 @@ View(cbind(eyesize$V1,ind))
 
 #We need to create a relevant dataframe as above
 #Note you may want to consider the square root of eye area if you want to use it as size
+pops_only <- as.factor(sapply(strsplit(as.character(pops),"_"), function(x){x[1]}))
+sex <- as.factor(sapply(strsplit(as.character(pops),"_"), function(x){x[2]}))
+
 gdf4 <- geomorph.data.frame(shape = headPCA$pc.scores[,2:dim(headPCA$pc.scores)[2]], size = as.numeric(eyesize$V2),
                             pop = pops_only , sex = sex) # geomorph data frame
 
-head.size.model<-procD.lm(shape ~ size*sex*pop ,  data=gdf4, iter = 9999, RRPP = F)
+head.size.model<-procD.lm(shape ~ size*sex*pop ,  data=gdf4, iter = 999, RRPP = F)
 alloplot<-plot(head.size.model, type = "regression", pch = 21, predictor=gdf4$size, bg=col.pops, reg.type="Pred")
 summary(head.size.model)
 
